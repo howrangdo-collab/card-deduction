@@ -653,9 +653,12 @@ function pensionRoom(rule, salary, baseAfterCard, saved, irp){
   const full = pensionCredit(rule, salary, baseAfterCard,
                              Math.max(saved || 0, p.limitSelf), p.limitTotal);
   const self = Math.min(Math.max(0, saved || 0), p.limitSelf);
+  const room = Math.max(0, p.limitTotal - now.eligible);
   return {
-    room: Math.max(0, p.limitTotal - now.eligible),        // 합산 한도까지 남은 여력
-    roomSelf: Math.max(0, p.limitSelf - self),             // 그중 연금저축으로 넣을 수 있는 몫
+    room,                                                  // 합산 한도까지 남은 여력
+    // ★ 합산 한도로도 잘라야 한다. 연금저축 한도만 보면, IRP 로 900을 채운 사람에게
+    //   "연금저축에 600 더 넣을 수 있다"는 값이 나온다 (전수조사에서 잡힘).
+    roomSelf: Math.min(Math.max(0, p.limitSelf - self), room),
     gain: Math.max(0, full.credit - now.credit),
     now, full
   };
@@ -684,7 +687,9 @@ function load(){ try { const r = localStorage.getItem(KEY); if (r) Object.assign
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
 
 const $ = id => document.getElementById(id);
-const n = v => (v === null || v === '' || isNaN(v)) ? 0 : +v;
+/* 상태값을 숫자로 읽는다. 이 앱에서 음수가 뜻을 갖는 칸은 하나도 없다(전부 금액·개수).
+   여기서 막지 않으면 "-900만원" 같은 금액이 화면과 알림에 그대로 나간다. */
+const n = v => (v === null || v === '' || isNaN(v)) ? 0 : Math.max(0, +v);
 
 /* 만원 단위 값을 사람이 읽는 금액으로 */
 function KRW(man){
@@ -1262,7 +1267,14 @@ function renderRules(){
    ========================================================================= */
 function bindNum(id, key, after){
   const el = $(id); if (!el) return;
-  el.addEventListener('input', () => { S[key] = el.value === '' ? null : +el.value; if (after) after(); save(); });
+  el.addEventListener('input', () => {
+    // 음수는 어느 칸에서도 뜻이 없다. 막지 않으면 "-900만원" 같은 금액이 화면과 알림에 나간다.
+    let v = el.value === '' ? null : +el.value;
+    if (v !== null && (!isFinite(v) || v < 0)) v = 0;
+    S[key] = v;
+    if (after) after();
+    save();
+  });
 }
 function fill(){
   const set = (id, v) => { const e = $(id); if (e) e.value = (v === null || v === undefined) ? '' : v; };
