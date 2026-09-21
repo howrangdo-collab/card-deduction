@@ -1,0 +1,19 @@
+{
+  "name": "카드공제 조타실",
+  "short_name": "카드공제",
+  "description": "연말정산 신용카드 소득공제를 최대로 받기 위해 남은 기간의 결제수단과 부부 카드 배분을 계산합니다.",
+  "lang": "ko",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F5F7",
+  "theme_color": "#2F62AD",
+  "categories": ["finance", "utilities"],
+  "icons": [
+    { "src": "web/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "web/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "web/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

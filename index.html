@@ -1,0 +1,1370 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>카드공제 조타실</title>
+<!-- 폰 홈 화면에 앱처럼 설치하기 위한 것. 로컬 파일로 열면 manifest 를 못 찾지만 화면은 그대로 뜬다. -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2F62AD">
+<meta name="description" content="연말정산 신용카드 소득공제를 최대로 받기 위해 남은 기간의 결제수단과 부부 카드 배분을 계산합니다.">
+<link rel="icon" href="web/icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="web/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="카드공제">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --ground:#F4F5F7; --surface:#FFFFFF; --surface-2:#FAFAFB; --raise:#EEF0F4;
+  --line:#DCDFE6; --line-2:#C6CBD6;
+  --ink:#171B24; --ink-2:#4A5162; --ink-3:#7C8498;
+  --accent:#2F62AD; --accent-soft:#E8EFF9; --accent-ink:#1E4478;
+  --warn:#8A6100; --warn-soft:#FBF2DC;
+  --crit:#9B2C2C; --crit-soft:#FAEBEA;
+  --c1:#2F62AD; --c2:#0B7A57; --c3:#A6501E; --c4:#7B55AD; --c5:#B08900;
+  --shadow:0 1px 2px rgba(23,27,36,.06), 0 4px 16px rgba(23,27,36,.05);
+  --shadow-lg:0 2px 4px rgba(23,27,36,.06), 0 12px 32px rgba(23,27,36,.09);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#10141B; --surface:#171C25; --surface-2:#1C222D; --raise:#212936;
+    --line:#2A313D; --line-2:#3A4252;
+    --ink:#E6EAF1; --ink-2:#AEB6C4; --ink-3:#7F8798;
+    --accent:#6293D4; --accent-soft:#1B2839; --accent-ink:#9EC1EC;
+    --warn:#D8A93A; --warn-soft:#2A2312;
+    --crit:#E0705F; --crit-soft:#2C1917;
+    --c1:#6293D4; --c2:#2FA57E; --c3:#CE7A47; --c4:#9A7ACB; --c5:#AD9128;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.28);
+    --shadow-lg:0 2px 4px rgba(0,0,0,.45), 0 12px 32px rgba(0,0,0,.4);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#10141B; --surface:#171C25; --surface-2:#1C222D; --raise:#212936;
+  --line:#2A313D; --line-2:#3A4252;
+  --ink:#E6EAF1; --ink-2:#AEB6C4; --ink-3:#7F8798;
+  --accent:#6293D4; --accent-soft:#1B2839; --accent-ink:#9EC1EC;
+  --warn:#D8A93A; --warn-soft:#2A2312;
+  --crit:#E0705F; --crit-soft:#2C1917;
+  --c1:#6293D4; --c2:#2FA57E; --c3:#CE7A47; --c4:#9A7ACB; --c5:#AD9128;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.28);
+  --shadow-lg:0 2px 4px rgba(0,0,0,.45), 0 12px 32px rgba(0,0,0,.4);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:'IBM Plex Sans KR',system-ui,-apple-system,'Malgun Gothic',sans-serif;
+  font-size:15px; line-height:1.65; -webkit-text-size-adjust:100%;
+}
+.num{font-family:'IBM Plex Mono','IBM Plex Sans KR',monospace; font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+h1,h2,h3{margin:0; text-wrap:balance}
+button,input,select{font:inherit; color:inherit}
+button{cursor:pointer}
+
+header.top{
+  position:sticky; top:env(safe-area-inset-top,0px); z-index:30;
+  background:color-mix(in srgb,var(--ground) 88%,transparent); backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.top-in{max-width:760px; margin:0 auto; padding:10px 16px; display:flex; align-items:center; gap:10px}
+.brand{font-family:'Gowun Batang',serif; font-weight:700; font-size:18px; letter-spacing:-.02em; white-space:nowrap}
+.top-sp{flex:1}
+.ghost{background:transparent; border:1px solid var(--line); border-radius:8px; padding:5px 10px; font-size:12.5px; color:var(--ink-2)}
+.ghost:hover{background:var(--raise); color:var(--ink)}
+.wrap{max-width:760px; margin:0 auto; padding:0 16px 64px}
+
+/* ---------------- 위저드 ---------------- */
+.steps-dots{display:flex; gap:6px; justify-content:center; margin:26px 0 0}
+.dot{width:34px; height:4px; border-radius:2px; background:var(--line-2)}
+.dot.on{background:var(--accent)}
+.q{margin-top:30px}
+.q-kicker{font-size:12.5px; color:var(--ink-3); font-weight:600; letter-spacing:.04em}
+.q-title{font-family:'Gowun Batang',serif; font-size:30px; font-weight:700; line-height:1.35; letter-spacing:-.02em; margin-top:8px}
+.q-help{color:var(--ink-2); font-size:14px; margin-top:10px}
+.q-body{margin-top:24px; display:flex; flex-direction:column; gap:14px}
+
+.ask{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px; box-shadow:var(--shadow)}
+.ask-l{font-size:13.5px; color:var(--ink-2); font-weight:500}
+.ask-l .hint{display:block; font-size:12px; color:var(--ink-3); font-weight:400; margin-top:1px}
+.ask-row{display:flex; align-items:center; gap:10px; margin-top:8px}
+.big-in{
+  flex:1; min-width:0; text-align:right; padding:10px 12px; border:1px solid var(--line-2); border-radius:9px;
+  background:var(--surface-2); font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums;
+  font-size:22px; font-weight:600; letter-spacing:-.02em;
+}
+.big-in:focus-visible{outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent)}
+.big-in:disabled{opacity:.45}
+.big-in::placeholder{color:var(--ink-3); opacity:.4; font-weight:400}
+.unit{font-size:14px; color:var(--ink-3); flex:none; font-weight:500}
+.echo{font-size:12.5px; color:var(--accent-ink); margin-top:7px; font-weight:500}
+.echo:empty{display:none}
+.echo.muted{color:var(--ink-3); font-weight:400}
+.lb-lab{line-height:1.35}
+
+.chips{display:flex; gap:7px; flex-wrap:wrap; margin-top:9px}
+.chip{background:var(--surface-2); border:1px solid var(--line-2); border-radius:20px; padding:5px 13px; font-size:13px; color:var(--ink-2)}
+.chip:hover{border-color:var(--accent); color:var(--accent-ink)}
+.chip[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+
+.nav{display:flex; gap:10px; margin-top:26px}
+.btn{
+  flex:1; padding:14px 18px; border-radius:11px; border:1px solid var(--accent); background:var(--accent); color:#fff;
+  font-size:15.5px; font-weight:600; letter-spacing:-.01em;
+}
+.btn:hover{filter:brightness(1.07)}
+.btn:disabled{opacity:.4; cursor:not-allowed; filter:none}
+.btn.sec{background:transparent; color:var(--ink-2); border-color:var(--line-2); flex:0 0 auto; padding-inline:20px}
+.btn.sec:hover{background:var(--raise); color:var(--ink); filter:none}
+
+details.more{margin-top:4px; border:1px solid var(--line); border-radius:12px; background:var(--surface); overflow:hidden}
+details.more > summary{padding:12px 16px; font-size:13.5px; color:var(--ink-2); font-weight:500; list-style:none; user-select:none}
+details.more > summary::-webkit-details-marker{display:none}
+details.more > summary::before{content:'＋ '; color:var(--ink-3)}
+details.more[open] > summary::before{content:'－ '}
+details.more > summary:hover{background:var(--raise)}
+.more-in{padding:2px 16px 16px; border-top:1px solid var(--line)}
+.more-in .ask{border:0; box-shadow:none; padding:10px 0; background:transparent}
+.more-in .ask + .ask{border-top:1px solid var(--line)}
+
+/* ---------------- 결과 ---------------- */
+.headline{
+  margin-top:26px; border-radius:16px; padding:26px 26px 24px; border:1px solid var(--accent);
+  background:var(--accent-soft); box-shadow:var(--shadow-lg);
+}
+.headline.is-warn{border-color:var(--warn); background:var(--warn-soft)}
+.headline.is-crit{border-color:var(--crit); background:var(--crit-soft)}
+.hl-kicker{font-size:12.5px; font-weight:600; color:var(--ink-2); letter-spacing:.03em}
+.hl-title{font-family:'Gowun Batang',serif; font-size:29px; font-weight:700; line-height:1.36; letter-spacing:-.02em; margin-top:9px}
+.hl-amt{
+  font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums;
+  font-size:40px; font-weight:600; letter-spacing:-.03em; line-height:1.1; margin-top:14px;
+}
+.hl-amt small{font-size:18px; font-weight:500; color:var(--ink-2); margin-left:4px; letter-spacing:0}
+.hl-sub{font-size:14px; color:var(--ink-2); margin-top:10px}
+.hl-sub b{color:var(--ink)}
+
+.sec-t{font-family:'Gowun Batang',serif; font-size:20px; font-weight:700; letter-spacing:-.02em; margin:34px 0 4px}
+.sec-d{font-size:13.5px; color:var(--ink-2); margin-bottom:14px}
+
+.card{background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:18px 18px 20px; box-shadow:var(--shadow)}
+.card + .card{margin-top:12px}
+
+/* 달력형 지시 */
+.plan{display:flex; flex-direction:column; gap:8px}
+.mrow{display:flex; align-items:center; gap:13px; padding:13px 15px; border-radius:11px; border:1px solid var(--line); background:var(--surface)}
+.mrow.credit{border-color:color-mix(in srgb,var(--c1) 42%,transparent); background:color-mix(in srgb,var(--c1) 7%,var(--surface))}
+.mrow.check{border-color:color-mix(in srgb,var(--c2) 42%,transparent); background:color-mix(in srgb,var(--c2) 7%,var(--surface))}
+.m-no{font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:600; color:var(--ink-2); width:38px; flex:none; text-align:center}
+.m-what{flex:1; min-width:0}
+.m-what b{font-size:15.5px; font-weight:600; letter-spacing:-.01em; display:block}
+.m-what span{font-size:12.5px; color:var(--ink-3)}
+.m-amt{font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; font-size:16px; font-weight:600; flex:none}
+
+/* 공제 시작선 막대 */
+.line-bar{margin-top:6px}
+.lb-track{display:flex; height:46px; border-radius:9px; border:1px solid var(--line-2); position:relative; margin-top:30px}
+.lb-dead{background:repeating-linear-gradient(135deg,var(--raise),var(--raise) 7px,var(--surface-2) 7px,var(--surface-2) 14px);
+  flex:none; position:relative; border-radius:8px 0 0 8px; border-right:1px dashed var(--line-2)}
+.lb-live{background:color-mix(in srgb,var(--c2) 22%,var(--surface)); flex:1; position:relative; border-radius:0 8px 8px 0}
+.lb-lab{position:absolute; inset:0; display:grid; place-items:center; font-size:12px; font-weight:600; color:var(--ink-2); padding:0 6px; text-align:center}
+.lb-you{position:absolute; top:-6px; bottom:-6px; width:3px; background:var(--ink); border-radius:2px; z-index:2}
+.lb-you::after{
+  content:attr(data-l); position:absolute; top:-26px; left:50%; transform:translateX(-50%); white-space:nowrap;
+  font-size:11.5px; font-weight:700; color:var(--surface); background:var(--ink); padding:2px 8px; border-radius:5px;
+}
+.lb-you.to-left::after{left:auto; right:-2px; transform:none}
+.lb-foot{display:flex; justify-content:space-between; font-size:11.5px; color:var(--ink-3); margin-top:8px; gap:10px}
+
+.kv{display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-top:1px solid var(--line); font-size:13.5px}
+.kv:first-child{border-top:0}
+.kv span{color:var(--ink-2)}
+.kv b{font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; font-weight:600}
+
+.note{font-size:12.5px; color:var(--ink-3); line-height:1.7; margin-top:12px}
+.note b{color:var(--ink-2); font-weight:600}
+.tag{display:inline-block; font-size:11px; padding:1px 8px; border-radius:20px; border:1px solid var(--line-2); color:var(--ink-3); font-weight:500; vertical-align:2px; margin-left:6px}
+.tag.w{border-color:var(--warn); color:var(--warn); background:var(--warn-soft)}
+
+/* 맞벌이 */
+.cp-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px}
+.cp-box{background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:13px 14px}
+.cp-box.win{border-color:var(--accent); background:var(--accent-soft)}
+.cp-l{font-size:11.5px; color:var(--ink-3); font-weight:600; letter-spacing:.03em}
+.cp-v{font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; font-size:20px; font-weight:600; margin-top:3px; letter-spacing:-.02em}
+.cp-d{font-size:12px; color:var(--ink-3); margin-top:4px}
+.chart-wrap{margin-top:16px; position:relative}
+svg.chart{display:block; width:100%; height:auto; overflow:visible}
+.ax{font-size:10.5px; fill:var(--ink-3); font-family:'IBM Plex Mono',monospace}
+.axl{font-size:11px; fill:var(--ink-3)}
+/* 좁은 화면에서는 viewBox가 축소돼 글씨가 뭉개진다 — 좌표계 안에서 더 크게 그린다 */
+svg.chart.narrow .ax{font-size:16px}
+svg.chart.narrow .axl{font-size:16px}
+.gridline{stroke:var(--line); stroke-width:1}
+.tip{position:absolute; pointer-events:none; background:var(--surface); border:1px solid var(--line-2); border-radius:8px;
+  padding:7px 10px; font-size:12px; box-shadow:var(--shadow); white-space:nowrap; transform:translate(-50%,-115%); opacity:0; transition:opacity .12s}
+.tip b{font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums}
+
+/* 구성 스택 */
+.comp-bar{display:flex; gap:2px; height:32px; margin-top:12px}
+.comp-seg{border-radius:3px; min-width:2px}
+.comp-seg:first-child{border-radius:5px 3px 3px 5px}
+.comp-seg:last-child{border-radius:3px 5px 5px 3px}
+.legend{display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:12px}
+.lg{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-2)}
+.swatch{width:9px; height:9px; border-radius:2px; flex:none}
+.lg .num{color:var(--ink); font-weight:500}
+
+.tbl-wrap{overflow-x:auto; margin-top:10px}
+table{border-collapse:collapse; width:100%; font-size:13px; min-width:430px}
+th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--line)}
+th{font-size:11px; letter-spacing:.06em; color:var(--ink-3); font-weight:600}
+td.n{font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; text-align:right}
+.src{font-size:12px; color:var(--ink-3); line-height:1.85; margin-top:10px}
+
+@media (max-width:560px){
+  .q-title{font-size:25px}
+  .hl-title{font-size:23px}
+  .hl-amt{font-size:33px}
+  .cp-grid{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">카드공제 조타실</div>
+    <div class="top-sp"></div>
+    <button class="ghost" id="editBtn" type="button" hidden>입력 고치기</button>
+    <button class="ghost" id="themeBtn" type="button">테마</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ================= 위저드 ================= -->
+  <section id="wizard">
+    <div class="steps-dots"><span class="dot" id="d1"></span><span class="dot" id="d2"></span><span class="dot" id="d3"></span></div>
+
+    <!-- 1 -->
+    <div class="q" id="q1">
+      <div class="q-kicker">1 / 3</div>
+      <h1 class="q-title">연봉이 얼마인가요?</h1>
+      <p class="q-help">카드로 쓴 돈이 <b>연봉의 25%를 넘어야</b> 그때부터 공제가 시작됩니다. 그 기준선을 먼저 구합니다.</p>
+      <div class="q-body">
+        <div class="ask">
+          <div class="ask-l">연봉 (세전)
+            <span class="hint">원천징수영수증 16번 '총급여'. 식대 같은 비과세는 빼고 적으세요.</span></div>
+          <div class="ask-row">
+            <input class="big-in" id="salary" type="number" inputmode="numeric" min="0" step="100" placeholder="5000">
+            <span class="unit">만원</span>
+          </div>
+          <div class="echo" id="salaryEcho"></div>
+        </div>
+        <div class="ask">
+          <div class="ask-l">아이가 있나요?<span class="hint">한 명당 공제 상한이 올라갑니다 (최대 두 명까지)</span></div>
+          <div class="chips" id="kidChips"></div>
+        </div>
+      </div>
+      <div class="nav"><button class="btn" id="go1" type="button">다음</button></div>
+    </div>
+
+    <!-- 2 -->
+    <div class="q" id="q2" hidden>
+      <div class="q-kicker">2 / 3</div>
+      <h1 class="q-title">올해 카드로 얼마 쓰셨어요?</h1>
+      <p class="q-help" id="q2help"></p>
+      <div class="q-body">
+        <div class="ask">
+          <div class="ask-l">어디까지 아는 금액인가요?</div>
+          <div class="chips" id="asOfChips"></div>
+        </div>
+        <div class="ask">
+          <div class="ask-l">신용카드<span class="hint">공제율 15%</span></div>
+          <div class="ask-row"><input class="big-in" id="u_credit" type="number" inputmode="numeric" min="0" step="10" placeholder="0"><span class="unit">만원</span></div>
+        </div>
+        <div class="ask">
+          <div class="ask-l">체크카드 · 현금영수증<span class="hint">공제율 30% — 신용카드의 두 배</span></div>
+          <div class="ask-row"><input class="big-in" id="u_check" type="number" inputmode="numeric" min="0" step="10" placeholder="0"><span class="unit">만원</span></div>
+        </div>
+        <div class="echo" id="u_echo"></div>
+        <details class="more">
+          <summary>전통시장 · 대중교통 · 도서공연도 따로 있어요</summary>
+          <div class="more-in">
+            <div class="ask">
+              <div class="ask-l">전통시장<span class="hint">공제율 40%</span></div>
+              <div class="ask-row"><input class="big-in" id="u_market" type="number" inputmode="numeric" min="0" step="10" placeholder="0"><span class="unit">만원</span></div>
+            </div>
+            <div class="ask">
+              <div class="ask-l">대중교통<span class="hint" id="transitHint">공제율 40%</span></div>
+              <div class="ask-row"><input class="big-in" id="u_transit" type="number" inputmode="numeric" min="0" step="10" placeholder="0"><span class="unit">만원</span></div>
+            </div>
+            <div class="ask">
+              <div class="ask-l">도서 · 공연 · 영화 · 체육시설<span class="hint" id="cultureHint">공제율 30%</span></div>
+              <div class="ask-row"><input class="big-in" id="u_culture" type="number" inputmode="numeric" min="0" step="10" placeholder="0"><span class="unit">만원</span></div>
+            </div>
+            <div class="note">이 칸들은 <b>그 용도로 쓴 금액만</b> 적습니다. 나머지 일반 소비는 위의 신용·체크 칸에 넣으세요.</div>
+          </div>
+        </details>
+      </div>
+      <div class="nav"><button class="btn sec" id="back2" type="button">이전</button><button class="btn" id="go2" type="button">다음</button></div>
+    </div>
+
+    <!-- 3 -->
+    <div class="q" id="q3" hidden>
+      <div class="q-kicker">3 / 3</div>
+      <h1 class="q-title" id="q3title">연말까지 얼마나 더 쓰실 것 같나요?</h1>
+      <p class="q-help">지금까지 쓴 속도로 어림잡아도 됩니다. 이 금액을 <b>어떤 카드로 쓸지</b>가 결과를 가릅니다.</p>
+      <div class="q-body">
+        <div class="ask">
+          <div class="ask-l" id="restLabel">남은 기간 예상 지출</div>
+          <div class="ask-row"><input class="big-in" id="restSpend" type="number" inputmode="numeric" min="0" step="10" placeholder="0"><span class="unit">만원</span></div>
+          <div class="echo muted" id="restEcho"></div>
+          <div class="chips" id="restChips"></div>
+        </div>
+        <details class="more">
+          <summary>세금 구간을 정확히 넣고 싶어요</summary>
+          <div class="more-in">
+            <div class="ask">
+              <div class="ask-l">과세표준<span class="hint">홈택스 '연말정산 미리보기'에 나오는 금액. 비워 두면 연봉으로 어림잡습니다.</span></div>
+              <div class="ask-row"><input class="big-in" id="taxbase" type="number" inputmode="numeric" min="0" step="10" placeholder="자동"><span class="unit">만원</span></div>
+            </div>
+            <div class="note">소득공제는 세금을 직접 깎는 게 아니라 <b>세금을 매기는 기준 금액</b>을 줄입니다. 그래서 돌려받는 돈은 이 금액이 어느 세율 구간에 있느냐에 따라 달라집니다.</div>
+          </div>
+        </details>
+      </div>
+      <div class="nav"><button class="btn sec" id="back3" type="button">이전</button><button class="btn" id="go3" type="button">결과 보기</button></div>
+    </div>
+  </section>
+
+  <!-- ================= 결과 ================= -->
+  <section id="result" hidden>
+    <div class="headline" id="headline">
+      <div class="hl-kicker" id="hlKicker"></div>
+      <h1 class="hl-title" id="hlTitle"></h1>
+      <div class="hl-amt num" id="hlAmt"></div>
+      <div class="hl-sub" id="hlSub"></div>
+    </div>
+
+    <h2 class="sec-t" id="planTitle">남은 달, 이렇게 쓰세요</h2>
+    <p class="sec-d" id="planDesc"></p>
+    <div class="plan" id="plan"></div>
+    <div class="note" id="planNote"></div>
+
+    <h2 class="sec-t">왜 그런가요</h2>
+    <p class="sec-d" id="whyDesc"></p>
+    <div class="card">
+      <div class="line-bar">
+        <div class="lb-track" id="lbTrack"></div>
+        <div class="lb-foot"><span id="lbFootL"></span><span id="lbFootR"></span></div>
+      </div>
+      <div class="note" id="lbNote"></div>
+    </div>
+
+    <div id="coupleSec">
+      <h2 class="sec-t">맞벌이라면 여기가 더 큽니다</h2>
+      <p class="sec-d">부부가 쓰는 돈은 같은데, <b>누구 카드로 긁느냐</b>만 바꿔도 결과가 크게 달라집니다. 둘 다 각자의 기준선을 못 넘으면 양쪽 공제가 동시에 사라지기 때문입니다.</p>
+      <details class="more" id="cpDetails">
+        <summary>배우자 정보를 넣고 계산해보기</summary>
+        <div class="more-in">
+          <div class="ask">
+            <div class="ask-l">배우자 연봉 (세전)</div>
+            <div class="ask-row"><input class="big-in" id="sp_salary" type="number" inputmode="numeric" min="0" step="100" placeholder="3000"><span class="unit">만원</span></div>
+          </div>
+          <div class="ask">
+            <div class="ask-l">둘이 한 해 동안 쓸 카드값 합계<span class="hint">전통시장·대중교통·도서공연은 빼고, 일반 소비만</span></div>
+            <div class="ask-row"><input class="big-in" id="cp_total" type="number" inputmode="numeric" min="0" step="100" placeholder="2400"><span class="unit">만원</span></div>
+          </div>
+          <div class="ask">
+            <div class="ask-l">아이 기본공제는 누가 받나요?</div>
+            <div class="chips" id="sideChips"></div>
+          </div>
+        </div>
+      </details>
+      <div id="cpResult" hidden>
+        <div class="card" style="margin-top:12px">
+          <div class="hl-kicker" id="cpVerdict"></div>
+          <div class="cp-grid">
+            <div class="cp-box win"><div class="cp-l">가장 많이 받는 배분</div><div class="cp-v num" id="cpBest"></div><div class="cp-d" id="cpBestD"></div></div>
+            <div class="cp-box"><div class="cp-l">반반씩 썼을 때</div><div class="cp-v num" id="cpHalf"></div><div class="cp-d" id="cpHalfD"></div></div>
+          </div>
+          <div class="chart-wrap">
+            <svg class="chart" id="cpChart" viewBox="0 0 600 280" role="img" aria-labelledby="cpChartT"><title id="cpChartT">본인 부담 비율별 부부 합계 환급액</title></svg>
+            <div class="tip" id="cpTip"></div>
+          </div>
+          <div class="note">맞벌이는 각자 자기 명의로 결제한 금액만 공제됩니다. 배우자를 기본공제 대상으로 올린 외벌이라면 배우자 사용액도 합산할 수 있습니다.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pensionSec">
+      <h2 class="sec-t">연금저축 · IRP — 12월 31일까지</h2>
+      <p class="sec-d">카드공제와 별개의 제도이고, <b>금액은 이쪽이 더 큽니다</b>.
+        쓰는 게 아니라 <b>내 계좌로 옮기는</b> 것이라, 돈이 나가지 않는데 세금만 줄어듭니다.</p>
+      <div class="card">
+        <div id="pensionBody"></div>
+      </div>
+      <details class="more" id="pnDetails">
+        <summary>올해 넣은 금액 입력하기</summary>
+        <div class="more-in">
+          <div class="ask">
+            <div class="ask-l">연금저축 <span class="hint">올해 납입액. 이 계좌만으로는 600만원까지 인정됩니다.</span></div>
+            <div class="ask-row"><input class="big-in" id="pn_save" type="number" inputmode="numeric" min="0" step="10" placeholder="0"><span class="unit">만원</span></div>
+          </div>
+          <div class="ask">
+            <div class="ask-l">IRP (퇴직연금) <span class="hint">올해 납입액. 연금저축과 합쳐 900만원까지.</span></div>
+            <div class="ask-row"><input class="big-in" id="pn_irp" type="number" inputmode="numeric" min="0" step="10" placeholder="0"><span class="unit">만원</span></div>
+          </div>
+          <div class="note">회사가 넣어주는 퇴직연금(DB·DC 사용자부담금)은 빼고, <b>내가 따로 넣은 금액</b>만 적습니다.</div>
+        </div>
+      </details>
+    </div>
+
+    <h2 class="sec-t">계산 내역</h2>
+    <details class="more">
+      <summary>숫자가 어떻게 나왔는지 보기</summary>
+      <div class="more-in">
+        <div id="breakdown"></div>
+        <div class="comp-bar" id="compBar"></div>
+        <div class="legend" id="compLegend"></div>
+      </div>
+    </details>
+    <details class="more">
+      <summary>이 앱이 쓰는 세법 규칙과 출처</summary>
+      <div class="more-in">
+        <div class="note" id="ruleStatus"></div>
+        <div class="tbl-wrap"><table id="ruleTbl"></table></div>
+        <div class="note" style="margin-top:14px"><b>공제가 안 되는 지출</b><br>
+          보험료 · <b>학교·어린이집에 내는</b> 수업료·입학금·보육비용 · 세금과 공과금 · 전기/수도/가스/통신비 · 아파트 관리비 · 도로통행료 ·
+          상품권 구입 · 자동차 리스료 · 신차 구입비(중고차는 10%만 인정) · 금융수수료 · 가상자산 거래 ·
+          월세액과 기부금(세액공제를 받은 경우) · 면세물품.
+          <br><br><b>흔히 빼는데 사실 공제되는 것</b> — <b>학원비</b>(사설학원 수강료)는 제외 목록에 없어 공제 대상입니다.
+          조특법 시행령은 <b>학교·어린이집에 납부하는</b> 수업료·입학금·보육비용만 뺍니다.
+          <b>의료비</b>도 카드로 결제하면 의료비 세액공제와 카드공제를 <b>둘 다</b> 받습니다(국세청 안내).
+        </div>
+        <div class="src">
+          조세특례제한법 제126조의2 · 소득세법 제47조 · 소득세법 제55조 · 국세청 「과세표준과 산출세액」 · 찾기쉬운 생활법령정보<br>
+          세법은 해마다 바뀝니다. 위 표가 그 해 국세청 안내와 다르면 결과도 달라집니다.
+        </div>
+      </div>
+    </details>
+
+    <details class="more" id="alertBox">
+      <summary>매달 알림으로 받기</summary>
+      <div class="more-in">
+        <div class="note">이 앱은 열어봐야 보입니다. 결제수단을 바꿔야 하는 시점은 <b>매달 초</b>인데,
+          정작 그때 앱을 열 이유가 없습니다. 그래서 같은 계산을 GitHub Actions 가 매달 돌려
+          텔레그램으로 보내도록 만들어 뒀습니다 — 매달 1일, 10월 말(홈택스 미리보기 개설),
+          12월 중순(마감)에 옵니다.</div>
+        <div class="note" style="margin-top:12px">알림을 돌리는 서버는 <b>이 기기에 저장된 값을 볼 수 없습니다.</b>
+          그래서 숫자를 한 번 건네줘야 합니다. <b>「알림에 반영」</b>을 누르면 아래 내용이 저장소로 보내져
+          다음 알림부터 그 값으로 계산합니다. 처음 한 번은 아래에 GitHub 토큰을 넣어야 합니다.
+          <br>토큰을 두기 싫으면 <b>「복사」</b>해서 저장소의 <b>config.json</b> 에 직접 붙여넣어도 결과는 같습니다.</div>
+        <textarea id="cfgOut" readonly rows="16" spellcheck="false"
+          style="width:100%;margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px;
+                 background:var(--raise);color:var(--ink);font:12.5px/1.6 ui-monospace,Menlo,Consolas,monospace;
+                 resize:vertical"></textarea>
+        <div class="nav" style="margin-top:10px">
+          <button class="btn" id="cfgPush" type="button">알림에 반영</button>
+          <button class="btn sec" id="cfgCopy" type="button">복사</button>
+        </div>
+        <div class="note" id="cfgMsg" style="margin-top:10px"></div>
+
+        <div class="ask" style="margin-top:14px">
+          <div class="ask-l">GitHub 토큰
+            <span class="hint" id="tokState">이 기기에 한 번만 넣으면 됩니다. 발급 방법은 아래를 펴세요.</span></div>
+          <div class="ask-row">
+            <input class="big-in" id="ghToken" type="password" autocomplete="off" spellcheck="false"
+                   placeholder="github_pat_..." style="font-size:14px; text-align:left; letter-spacing:0">
+          </div>
+          <div class="nav" style="margin-top:10px">
+            <button class="btn sec" id="tokSave" type="button">이 기기에 저장</button>
+            <button class="btn sec" id="tokClear" type="button">지우기</button>
+          </div>
+        </div>
+
+        <details class="more" style="margin-top:12px">
+          <summary>토큰 발급하는 법 (한 번만)</summary>
+          <div class="more-in">
+            <div class="note">
+              <b>1</b> github.com 로그인 → 오른쪽 위 프로필 → <b>Settings</b><br>
+              <b>2</b> 왼쪽 맨 아래 <b>Developer settings</b><br>
+              <b>3</b> <b>Personal access tokens</b> → <b>Fine-grained tokens</b> → <b>Generate new token</b><br>
+              <b>4</b> Repository access → <b>Only select repositories</b> → <b>yearend-card-alert</b> 선택<br>
+              <b>5</b> Permissions → Repository permissions → <b>Contents</b> 를 <b>Read and write</b> 로<br>
+              <b>6</b> 만들어진 <b>github_pat_</b> 로 시작하는 문자열을 위 칸에 붙여넣고 「이 기기에 저장」
+            </div>
+            <div class="note"><span class="tag w">권한을 좁히세요</span> 위 4·5번대로 하면 이 토큰으로는
+              <b>그 저장소의 파일 수정</b> 말고는 아무것도 할 수 없습니다. 다른 저장소도, 계정 설정도 건드리지 못합니다.
+              토큰은 <b>이 기기 안에만</b> 저장되고 앱 주소나 코드에는 들어가지 않습니다.</div>
+            <div class="note">만료일을 정했다면 그날 이후로는 「알림에 반영」이 실패합니다.
+              그때 같은 방법으로 새로 발급해 넣으면 됩니다. <b>알림 자체는 토큰과 무관하게 계속 옵니다.</b></div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <div class="nav" style="margin-top:28px">
+      <button class="btn sec" id="againBtn" type="button">처음부터 다시</button>
+      <button class="btn" id="editBtn2" type="button">입력 고치기</button>
+    </div>
+  </section>
+</div>
+
+<script>
+/* =========================================================================
+   규칙 테이블 — 세법이 바뀌면 여기만 고친다
+   금액 단위: 만원
+   ========================================================================= */
+const RULES = {
+  2026: {
+    label: '2026년 귀속 (2027년 2월 정산)',
+    status: 'confirmed',
+    statusText: '현행 법령 기준. 2026년 세제개편안의 대중교통·도서공연 변경은 2027년 귀속부터라 여기에는 반영하지 않습니다.',
+    thresholdRate: 0.25,
+    rate: { credit:0.15, check:0.30, culture:0.30, market:0.40, transit:0.40 },
+    salaryBoundary: 7000,
+    cultureEligibleUnderBoundary: true,
+    baseCap: { low:300, high:250 },
+    childBonus: { low:50, high:25, maxCount:2 },
+    extraCap: { low:300, high:200 },
+    extraIncludesCulture: true,
+    /* 연금계좌 세액공제 (소득세법 §59조의3) — 카드공제와 완전히 별개의 제도다.
+       ★ 기준 금액이 다르다: 카드공제는 총급여 7,000만원, 연금은 5,500만원. 헷갈리기 쉽다. */
+    pension: { salaryBoundary:5500, limitSelf:600, limitTotal:900, rateLow:0.15, rateHigh:0.12 }
+  },
+  2027: {
+    label: '2027년 귀속 (개편안, 국회 확정 전)',
+    status: 'draft',
+    statusText: '2026년 세제개편안 기준입니다. 대중교통이 우대공제에서 빠지고(결제수단별 일반공제율 적용), 도서공연의 총급여 7천만원 제한이 없어지며, 추가한도가 100만원씩 줄어듭니다. 국회 통과 전이라 바뀔 수 있습니다.',
+    thresholdRate: 0.25,
+    rate: { credit:0.15, check:0.30, culture:0.30, market:0.40, transit:null },
+    salaryBoundary: 7000,
+    cultureEligibleUnderBoundary: false,
+    baseCap: { low:300, high:250 },
+    childBonus: { low:50, high:25, maxCount:2 },
+    extraCap: { low:200, high:100 },
+    extraIncludesCulture: true,
+    /* 연금계좌 세액공제 (소득세법 §59조의3) — 카드공제와 완전히 별개의 제도다.
+       ★ 기준 금액이 다르다: 카드공제는 총급여 7,000만원, 연금은 5,500만원. 헷갈리기 쉽다. */
+    pension: { salaryBoundary:5500, limitSelf:600, limitTotal:900, rateLow:0.15, rateHigh:0.12 }
+  }
+};
+
+/* 소득세법 제55조 — [과세표준 상한, 세율, 누진공제] */
+const TAX_TABLE = [
+  [1400,0.06,0],[5000,0.15,126],[8800,0.24,576],[15000,0.35,1544],
+  [30000,0.38,1994],[50000,0.40,2594],[100000,0.42,3594],[Infinity,0.45,6594]
+];
+const LOCAL_TAX = 0.10; // 지방소득세
+
+/* 소득세법 제47조 — 근로소득공제 */
+function earnedIncomeDeduction(sal){
+  let d;
+  if (sal <= 500) d = sal*0.70;
+  else if (sal <= 1500) d = 350 + (sal-500)*0.40;
+  else if (sal <= 4500) d = 750 + (sal-1500)*0.15;
+  else if (sal <= 10000) d = 1200 + (sal-4500)*0.05;
+  else d = 1475 + (sal-10000)*0.02;
+  return Math.min(d, 2000);
+}
+function incomeTax(base){
+  const b = Math.max(0, base);
+  for (const [cap, rate, prog] of TAX_TABLE) if (b <= cap) return Math.max(0, b*rate - prog);
+  return 0;
+}
+/* 소득공제 ded를 받았을 때 실제로 줄어드는 세금(지방소득세 포함) */
+function taxSaved(base, ded){
+  const before = incomeTax(base), after = incomeTax(base - ded);
+  return (before - after) * (1 + LOCAL_TAX);
+}
+function marginalRate(base){
+  for (const [cap, rate] of TAX_TABLE) if (base <= cap) return rate*(1+LOCAL_TAX);
+  return 0.495;
+}
+
+/* ---------- 신용카드등 소득공제 ---------- */
+function deduction(rule, salary, use, children){
+  const M = salary * rule.thresholdRate;
+  const low = salary <= rule.salaryBoundary;
+  const r = rule.rate;
+
+  // 우대공제 대상이 아닌 해의 대중교통·도서공연은 결제수단별 일반공제율을 따른다.
+  // 결제수단을 따로 받지 않으므로 보수적으로 신용카드분(15%)으로 본다.
+  const cultureOK = rule.cultureEligibleUnderBoundary ? low : true;
+  const cultureAmt = cultureOK ? (use.culture||0) : 0;
+  const cultureSpill = cultureOK ? 0 : (use.culture||0);
+
+  const transitPreferred = r.transit !== null;
+  const transitAmt = use.transit || 0;
+  const transitSpill = transitPreferred ? 0 : transitAmt;
+
+  const t15 = (use.credit||0) + cultureSpill + transitSpill;
+  const t30 = (use.check||0) + cultureAmt;
+  const t40 = (use.market||0) + (transitPreferred ? transitAmt : 0);
+  const total = t15 + t30 + t40;
+
+  let raw;
+  if (total <= M) raw = 0;
+  else if (M <= t15) raw = (t15-M)*r.credit + t30*r.check + t40*r.market;
+  else if (M <= t15+t30) raw = (t15+t30-M)*r.check + t40*r.market;
+  else raw = (total-M)*r.market;
+
+  const baseCap = (low ? rule.baseCap.low : rule.baseCap.high)
+    + Math.min(children||0, rule.childBonus.maxCount) * (low ? rule.childBonus.low : rule.childBonus.high);
+
+  if (raw <= baseCap) return { ded: raw, raw, baseCap, extraLimit: low?rule.extraCap.low:rule.extraCap.high, M, t15, t30, t40, total };
+
+  let pool = (use.market||0)*r.market + (transitPreferred ? transitAmt*r.transit : 0);
+  if (rule.extraIncludesCulture && cultureOK) pool += cultureAmt * r.culture;
+  const extraLimit = low ? rule.extraCap.low : rule.extraCap.high;
+  const extra = Math.min(raw - baseCap, pool, extraLimit);
+  return { ded: baseCap + extra, raw, baseCap, extraLimit, M, t15, t30, t40, total };
+}
+
+
+/* ---------- 연금계좌 세액공제 ----------
+   소득공제(카드)와 달리 **세액공제**라 세율과 무관하게 정해진 비율만큼 세금이 깎인다.
+   baseAfterCard 는 카드 소득공제를 반영한 뒤의 과세표준 — 세액공제는 그 산출세액을 넘을 수 없다.
+   ★ 근로소득세액공제는 반영하지 않았다. 그래서 이 한도는 실제보다 관대하다(= 결과가 후하게 나올 수 있다).
+     정확한 값은 홈택스 미리보기에 있다. 화면에서 그렇게 밝힌다. */
+function pensionCredit(rule, salary, baseAfterCard, saved, irp){
+  const p = rule.pension;
+  const self = Math.min(Math.max(0, saved || 0), p.limitSelf);   // 연금저축은 600만까지만 인정
+  const eligible = Math.min(self + Math.max(0, irp || 0), p.limitTotal);
+  const rate = salary <= p.salaryBoundary ? p.rateLow : p.rateHigh;
+  const raw = eligible * rate;
+  const cap = incomeTax(baseAfterCard);
+  const applied = Math.min(raw, cap);
+  return { eligible, rate, raw, applied, cap,
+           capped: applied < raw - 0.001,
+           credit: applied * (1 + LOCAL_TAX) };
+}
+/* 지금 더 넣을 수 있는 금액과, 그때 추가로 돌아오는 돈 */
+function pensionRoom(rule, salary, baseAfterCard, saved, irp){
+  const p = rule.pension;
+  const now = pensionCredit(rule, salary, baseAfterCard, saved, irp);
+  const full = pensionCredit(rule, salary, baseAfterCard,
+                             Math.max(saved || 0, p.limitSelf), p.limitTotal);
+  const self = Math.min(Math.max(0, saved || 0), p.limitSelf);
+  return {
+    room: Math.max(0, p.limitTotal - now.eligible),        // 합산 한도까지 남은 여력
+    roomSelf: Math.max(0, p.limitSelf - self),             // 그중 연금저축으로 넣을 수 있는 몫
+    gain: Math.max(0, full.credit - now.credit),
+    now, full
+  };
+}
+
+/* =========================================================================
+   상태
+   ========================================================================= */
+const KEY = 'cardded.v2';
+const THIS_YEAR = (function(){
+  const y = new Date().getFullYear();
+  return RULES[y] ? y : Math.max(...Object.keys(RULES).map(Number).filter(n => n <= y)) || 2026;
+})();
+
+const S = {
+  step: 1, done: false,
+  year: THIS_YEAR, asOf: Math.min(12, new Date().getMonth() + 1),
+  salary: null, children: 0, taxbase: null,
+  credit: 0, check: 0, market: 0, transit: 0, culture: 0,
+  restSpend: null,
+  pensionSave: null, pensionIrp: null,
+  sp_salary: null, cp_total: null, childSide: 'me',
+  theme: null
+};
+function load(){ try { const r = localStorage.getItem(KEY); if (r) Object.assign(S, JSON.parse(r)); } catch(e){} }
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
+
+const $ = id => document.getElementById(id);
+const n = v => (v === null || v === '' || isNaN(v)) ? 0 : +v;
+
+/* 만원 단위 값을 사람이 읽는 금액으로 */
+function KRW(man){
+  const won = Math.round(man * 10000 / 1000) * 1000;
+  return won.toLocaleString('ko-KR') + '원';
+}
+function MAN(man){ return Math.round(man).toLocaleString('ko-KR') + '만원'; }
+function MANW(man){                      // 억 단위까지 읽어주는 표기
+  const m = Math.round(man);
+  if (m >= 10000){
+    const eok = Math.floor(m / 10000), rest = m % 10000;
+    return eok + '억' + (rest ? ' ' + rest.toLocaleString('ko-KR') + '만원' : '원');
+  }
+  return MAN(m);
+}
+const MONTH = ['','1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+/* =========================================================================
+   계산 묶음
+   ========================================================================= */
+function rule(){ return RULES[S.year]; }
+function threshold(){ return n(S.salary) * rule().thresholdRate; }
+function usedYTD(){ return { credit:n(S.credit), check:n(S.check), market:n(S.market), transit:n(S.transit), culture:n(S.culture) }; }
+function usedSum(){ const u = usedYTD(); return u.credit + u.check + u.market + u.transit + u.culture; }
+
+/* 과세표준: 직접 넣었으면 그 값, 아니면 연봉으로 어림 */
+function taxBase(){
+  if (S.taxbase !== null && n(S.taxbase) > 0) return n(S.taxbase);
+  const sal = n(S.salary);
+  return Math.max(0, sal - earnedIncomeDeduction(sal) - 150 * (1 + Math.min(n(S.children), 10)));
+}
+function isEstimated(){ return !(S.taxbase !== null && n(S.taxbase) > 0); }
+/* 어림값이 세율 구간 경계에 가까우면 결과가 흔들린다 */
+function nearBracketEdge(){
+  const b = taxBase();
+  return TAX_TABLE.some(([cap]) => isFinite(cap) && Math.abs(b - cap) <= cap * 0.08);
+}
+/* 지금까지의 습관 — 신용카드 비중 */
+function habitMix(){
+  const u = usedYTD(), s = u.credit + u.check;
+  return s > 0 ? u.credit / s : 1;
+}
+function projected(p){
+  const u = usedYTD(), rest = n(S.restSpend);
+  return { ...u, credit: u.credit + rest * p, check: u.check + rest * (1 - p) };
+}
+function refundOf(p){
+  const d = deduction(rule(), n(S.salary), projected(p), n(S.children));
+  return { ...d, refund: taxSaved(taxBase(), d.ded) };
+}
+function bestMix(){
+  let best = { p:0, refund:-Infinity };
+  for (let i = 0; i <= 100; i++){
+    const r = refundOf(i / 100);
+    if (r.refund >= best.refund - 1e-9) best = { p:i/100, refund:Math.max(r.refund, best.refund) };
+  }
+  return best;
+}
+
+/* 남은 달을 신용/체크로 나눈 달력.
+   ★ 화면과 알림 스크립트가 같은 함수를 쓴다. 따로 쓰면 앱은 "신용 300만까지"인데
+     알림은 다른 금액을 말하는 사태가 생긴다. fromMonth 는 실적이 끝난 달(S.asOf). */
+function planRows(fromMonth, rest, p){
+  const left = 12 - fromMonth;
+  if (left <= 0 || rest <= 0) return [];
+  const budget = rest / left;
+  let creditLeft = p * rest;
+  const rows = [];
+  for (let m = fromMonth + 1; m <= 12; m++){
+    const c = Math.min(budget, creditLeft); creditLeft -= c;
+    rows.push({ m: m, c: c, k: budget - c, budget: budget });
+  }
+  return rows;
+}
+
+/* =========================================================================
+   위저드
+   ========================================================================= */
+function showStep(k){
+  S.step = k; S.done = (k === 0);
+  $('wizard').hidden = (k === 0);
+  $('result').hidden = (k !== 0);
+  $('editBtn').hidden = (k !== 0);
+  [1,2,3].forEach(i => { $('q'+i).hidden = (i !== k); $('d'+i).classList.toggle('on', i <= k); });
+  if (k === 0) renderResult();
+  window.scrollTo({ top:0, behavior:'instant' });
+  save();
+}
+
+function buildChips(host, items, get, set){
+  host.innerHTML = items.map(it =>
+    '<button class="chip" type="button" data-v="' + it.v + '" aria-pressed="' + (String(get()) === String(it.v)) + '">' + it.l + '</button>'
+  ).join('');
+  host.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
+    set(b.dataset.v);
+    host.querySelectorAll('.chip').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    save();
+  }));
+}
+
+function syncStep1(){
+  const sal = n(S.salary);
+  $('salaryEcho').textContent = sal > 0
+    ? '공제가 시작되는 기준선 — ' + MAN(threshold()) + ' (연봉의 25%)'
+    : '';
+  $('go1').disabled = !(sal > 0);
+}
+function syncStep2(){
+  const sal = n(S.salary), M = threshold(), sum = usedSum();
+  $('q2help').innerHTML = '기준선은 <b>' + MAN(M) + '</b>입니다. ' + MONTH[S.asOf] + '까지 쓴 금액을 적어주세요.';
+  const gap = M - sum;
+  $('u_echo').className = 'echo' + (sum === 0 ? ' muted' : '');
+  $('u_echo').innerHTML = sum === 0 ? ''
+    : (gap > 0
+       ? '지금까지 ' + MAN(sum) + ' — 기준선까지 <b>' + MAN(gap) + '</b> 남았습니다'
+       : '지금까지 ' + MAN(sum) + ' — 기준선을 <b>' + MAN(-gap) + '</b> 넘었습니다');
+  const r = rule();
+  const transitOff = r.rate.transit === null;
+  $('transitHint').textContent = transitOff ? '이 해에는 우대 폐지 — 신용/체크 칸에 넣으세요' : '공제율 40%';
+  $('u_transit').disabled = transitOff;
+  const cultureOff = r.cultureEligibleUnderBoundary && sal > r.salaryBoundary;
+  $('cultureHint').textContent = cultureOff ? '연봉 7천만원 초과 — 신용/체크 칸에 넣으세요' : '공제율 30%';
+  $('u_culture').disabled = cultureOff;
+}
+function syncStep3(){
+  const rest = n(S.restSpend), left = 12 - S.asOf;
+  $('q3title').textContent = left > 0
+    ? MONTH[S.asOf + 1] + '부터 12월까지 얼마나 더 쓰실 것 같나요?'
+    : '올해는 이미 끝났습니다';
+  $('restLabel').innerHTML = left > 0
+    ? MONTH[S.asOf + 1] + '~12월 예상 지출 <span class="hint">' + left + '개월치 합계</span>'
+    : '남은 지출 <span class="hint">올해가 끝나 바꿀 수 있는 것이 없습니다</span>';
+  $('restEcho').textContent = (rest > 0 && left > 0) ? '한 달에 ' + MAN(rest / left) + '씩 쓰는 셈입니다' : '';
+  const pace = S.asOf > 0 ? usedSum() / S.asOf * left : 0;
+  $('restChips').innerHTML = (left > 0 && pace > 0)
+    ? '<button class="chip" type="button" id="paceChip">지금 속도대로 ' + MAN(pace) + '</button>' : '';
+  if ($('paceChip')) $('paceChip').addEventListener('click', () => {
+    S.restSpend = Math.round(pace); $('restSpend').value = S.restSpend; syncStep3(); save();
+  });
+}
+
+/* =========================================================================
+   결과
+   ========================================================================= */
+function renderResult(){
+  const r = rule(), sal = n(S.salary), M = threshold(), rest = n(S.restSpend), left = 12 - S.asOf;
+  const cur = refundOf(habitMix());
+  const best = bestMix();
+  const bestD = refundOf(best.p);
+  const gain = Math.max(0, bestD.refund - cur.refund);
+  const missed = bestD.total < M;          // 연말까지도 기준선 미달
+  const saturated = bestD.ded >= bestD.baseCap - 0.01;
+
+  /* ---- 결론 배너 ---- */
+  const hl = $('headline');
+  hl.className = 'headline';
+  const startMonth = MONTH[Math.min(12, S.asOf + 1)];
+  if (missed){
+    hl.classList.add('is-crit');
+    $('hlKicker').textContent = '올해 카드공제';
+    $('hlTitle').textContent = '연말까지 써도 기준선을 못 넘습니다';
+    $('hlAmt').innerHTML = '0<small>원</small>';
+    $('hlSub').innerHTML = '연말 예상 사용액이 <b>' + MAN(bestD.total) + '</b>으로 기준선 <b>' + MAN(M)
+      + '</b>에 <b>' + MAN(M - bestD.total) + '</b> 모자랍니다. '
+      + '카드공제만 보고 돈을 더 쓰는 건 손해입니다. 다만 <b>맞벌이라면</b> 아래 배분을 꼭 확인하세요 — 한쪽으로 몰면 공제가 살아납니다.';
+  } else if (gain > 0.5){
+    $('hlKicker').textContent = '결제수단만 바꾸면';
+    $('hlTitle').textContent = startMonth + '부터 체크카드·현금영수증으로 바꾸세요';
+    $('hlAmt').innerHTML = '+' + KRW(gain).replace('원', '') + '<small>원 더</small>';
+    $('hlSub').innerHTML = '지금 쓰던 대로면 <b>' + KRW(cur.refund) + '</b>, 바꾸면 <b>' + KRW(bestD.refund)
+      + '</b>입니다. 돈을 더 쓰는 게 아니라 <b>같은 돈을 다른 카드로</b> 쓰는 것뿐입니다.';
+  } else if (saturated){
+    hl.classList.add('is-warn');
+    $('hlKicker').textContent = '올해 돌려받는 돈';
+    $('hlTitle').textContent = '공제는 이미 꽉 찼습니다';
+    $('hlAmt').innerHTML = KRW(cur.refund).replace('원', '') + '<small>원</small>';
+    $('hlSub').innerHTML = '상한 <b>' + MAN(cur.baseCap) + '</b>을 채웠습니다. 여기서 더 써도 세금은 안 줄어드니, '
+      + '남은 지출은 <b>적립·할인이 큰 카드</b>로 쓰는 편이 이득입니다.';
+  } else {
+    $('hlKicker').textContent = '올해 돌려받는 돈';
+    $('hlTitle').textContent = '지금 방식 그대로 가면 됩니다';
+    $('hlAmt').innerHTML = KRW(cur.refund).replace('원', '') + '<small>원</small>';
+    $('hlSub').innerHTML = '결제수단을 바꿔도 더 늘어나지 않습니다. 소득공제 <b>' + MAN(cur.ded) + '</b>에 대한 환급액입니다.';
+  }
+  if (isEstimated() && nearBracketEdge()){
+    $('hlSub').innerHTML += ' <span class="tag w">세율 구간 경계</span> 연봉으로 어림잡은 값이 세율이 바뀌는 지점에 가깝습니다. '
+      + '「입력 고치기」에서 과세표준을 직접 넣으면 정확해집니다.';
+  }
+
+  /* ---- 달력형 지시 ---- */
+  if (rest <= 0 || left <= 0){
+    $('planTitle').hidden = true; $('planDesc').hidden = true;
+    $('plan').innerHTML = ''; $('planNote').textContent = '';
+  } else {
+    $('planTitle').hidden = false; $('planDesc').hidden = false;
+    const rows = planRows(S.asOf, rest, best.p);
+    const budget = rest / left;
+    $('planDesc').innerHTML = '남은 ' + left + '개월 예상 지출 <b>' + MAN(rest) + '</b>을 달마다 <b>' + MAN(budget)
+      + '</b>씩 쓴다고 보고 나눈 것입니다. 금액보다 <b>어떤 카드인지</b>가 중요합니다.';
+    $('plan').innerHTML = rows.map(r2 => {
+      const useCredit = r2.c >= r2.k;
+      const label = r2.c > 0 && r2.k > 0
+        ? '신용 ' + MAN(r2.c) + ' + 체크 ' + MAN(r2.k)
+        : (useCredit ? '신용카드' : '체크카드 · 현금영수증');
+      const why = r2.c > 0 && r2.k > 0 ? '기준선까지만 신용카드'
+        : (useCredit ? (saturated ? '공제는 다 찼으니 혜택 좋은 카드로' : '기준선 안쪽 — 공제는 어차피 0원') : '공제율이 두 배');
+      return '<div class="mrow ' + (useCredit ? 'credit' : 'check') + '">'
+        + '<div class="m-no">' + MONTH[r2.m] + '</div>'
+        + '<div class="m-what"><b>' + label + '</b><span>' + why + '</span></div>'
+        + '<div class="m-amt">' + MAN(budget) + '</div></div>';
+    }).join('');
+    $('planNote').innerHTML = '<b>12월 31일까지 결제한 것</b>만 올해 공제입니다. 할부는 결제한 달로 나눠 들어갑니다.'
+      + (n(S.market) + n(S.transit) === 0
+         ? ' 전통시장과 대중교통은 공제율 40%에 상한도 따로 있습니다 — 장보기와 교통비를 카드로 쓰고 있는지 확인해보세요.' : '');
+  }
+
+  /* ---- 공제 시작선 막대 ---- */
+  // 막대 전체 = 기준선과 연말 예상 사용액 중 큰 쪽. 여유 배수를 주면 막대 길이가 곧 사용액이라는 설명이 거짓말이 된다.
+  const yearTotal = bestD.total;
+  const span = Math.max(M, yearTotal) || 1;
+  const deadPct = M / span * 100;
+  const youPct = Math.min(100, yearTotal / span * 100);
+  $('lbTrack').innerHTML =
+      '<div class="lb-dead" style="flex:0 0 ' + deadPct + '%"><div class="lb-lab">'
+        + (deadPct > 30 ? '공제 0원 구간<br>' + MAN(M) + '까지' : deadPct > 14 ? '공제 0원' : '') + '</div></div>'
+    + '<div class="lb-live"><div class="lb-lab">' + (100 - deadPct > 22 ? '여기부터 공제됩니다' : '') + '</div></div>'
+    + '<div class="lb-you' + (youPct > 58 ? ' to-left' : '') + '" data-l="연말 예상 ' + MAN(yearTotal)
+    + '" style="left:calc(' + youPct + '% - 1.5px)"></div>';
+  $('lbFootL').textContent = '0원';
+  $('lbFootR').textContent = '점선 = 기준선 ' + MAN(M) + ' (연봉의 25%)';
+  $('whyDesc').innerHTML = '카드를 아무리 써도 <b>연봉의 25%</b>까지는 공제가 한 푼도 없습니다. '
+    + '그 선을 넘긴 금액만 계산에 들어갑니다. 그래서 선 안쪽은 어떤 카드로 쓰든 결과가 같습니다.';
+
+  const projCredit = projected(habitMix()).credit;
+  let lbNote = '';
+  if (projCredit > M + 0.5){
+    // 덜 받는 금액은 '초과분 × 15%p'가 아니라 실제로 되찾을 수 있는 금액(gain)이다.
+    // 공제 상한에 걸리면 초과분을 다 옮겨도 그만큼 돌아오지 않는다.
+    lbNote = '지금 습관대로면 <b>신용카드로만 ' + MAN(projCredit) + '</b>을 쓰게 됩니다. 기준선을 <b>' + MAN(projCredit - M)
+      + '</b> 넘는 셈인데, 이 초과분은 30%가 아니라 15%로만 인정됩니다. '
+      + (gain > 0.5
+         ? '기준선을 넘는 순간부터 체크카드로 바꾸면 <b>' + KRW(gain) + '</b>이 돌아옵니다.'
+         : '다만 공제 상한을 이미 채워서, 바꿔도 더 돌아오지는 않습니다.');
+  } else if (!missed){
+    lbNote = '기준선을 넘긴 <b>' + MAN(Math.max(0, yearTotal - M)) + '</b>이 공제 계산에 들어갑니다. '
+      + '신용카드 사용액이 기준선 안쪽이라 손해 보는 부분은 없습니다.';
+  } else {
+    lbNote = '기준선에 <b>' + MAN(M - yearTotal) + '</b> 모자랍니다. 이 상태로는 한 푼도 공제되지 않습니다.';
+  }
+  if (!missed){
+    const rate = r.rate.check * marginalRate(taxBase());
+    lbNote += ' 참고로 지금 구간에서 체크카드로 <b>100만원을 더 써도</b> 돌아오는 돈은 <b>' + KRW(rate * 100)
+      + '</b>뿐입니다 — 공제를 노린 추가 지출은 언제나 손해입니다.';
+  }
+  $('lbNote').innerHTML = lbNote;
+
+  renderCouple();
+  renderPension(bestD);
+  renderBreakdown(cur, bestD, M);
+  renderRules();
+  renderConfigOut();
+}
+
+/* 알림용 설정값 — GitHub Actions 가 읽는 config.json 과 같은 스키마로 내보낸다.
+   ★ 왜 필요한가: 알림 스크립트는 이 브라우저의 localStorage 를 읽을 수 없다.
+     숫자를 손으로 옮겨 적게 하면 앱과 알림이 다른 값으로 계산한다. */
+function renderConfigOut(){
+  const out = { _안내: '카드공제 조타실 앱에서 내보낸 값입니다. 금액은 만원 단위입니다.', _샘플: false };
+  ['year','asOf','salary','children','taxbase','credit','check','market','transit','culture',
+   'restSpend','pensionSave','pensionIrp','sp_salary','cp_total','childSide'].forEach(k => { out[k] = S[k]; });
+  $('cfgOut').value = JSON.stringify(out, null, 2);
+}
+
+/* ---------------- 알림 설정 보내기 ----------------
+   폰에서 고친 값을 GitHub 의 config.json 에 바로 써 넣는다.
+   ★ 왜 필요한가: 앱이 저장한 값은 그 기기 브라우저 안에만 있다. 알림을 돌리는 GitHub 서버는
+     남의 기기 속을 볼 수 없으므로, 값을 한 번 건네주지 않으면 알림은 옛 숫자로 계산한다.
+   ★ 토큰은 이 기기 localStorage 에만 둔다. 앱 코드(공개)에는 들어가지 않는다. */
+const GH_REPO = 'howrangdo-collab/yearend-card-alert';
+const GH_PATH = 'config.json';
+const TOKEN_KEY = 'cardded.ghtoken';
+
+function getToken(){ try { return localStorage.getItem(TOKEN_KEY) || ''; } catch(e){ return ''; } }
+function syncTokState(){
+  const has = !!getToken();
+  $('tokState').textContent = has
+    ? '이 기기에 저장돼 있습니다. 바꾸려면 새로 붙여넣고 「이 기기에 저장」을 누르세요.'
+    : '이 기기에 한 번만 넣으면 됩니다. 발급 방법은 아래를 펴세요.';
+}
+/* 한글이 들어간 JSON 을 base64 로 — btoa 는 Latin-1 만 받아서 그냥 넣으면 터진다 */
+function b64(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  bytes.forEach(b => { bin += String.fromCharCode(b); });
+  return btoa(bin);
+}
+function ghHeaders(token){
+  return { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json',
+           'X-GitHub-Api-Version': '2022-11-28' };
+}
+function cfgSay(text, bad){
+  const el = $('cfgMsg');
+  el.innerHTML = (bad ? '<span class="tag w">확인</span> ' : '') + text;
+}
+
+async function pushConfig(){
+  const token = getToken();
+  if (!token){ cfgSay('먼저 아래에 GitHub 토큰을 넣고 「이 기기에 저장」을 누르세요.', true); return; }
+
+  const api = 'https://api.github.com/repos/' + GH_REPO + '/contents/' + GH_PATH;
+  cfgSay('보내는 중...');
+  try {
+    // 1) 지금 파일을 읽는다 — 설명용 _ 키와 sha 가 필요하다
+    const r1 = await fetch(api, { headers: ghHeaders(token), cache: 'no-store' });
+    if (!r1.ok) throw new Error(ghWhy(r1.status));
+    const cur = await r1.json();
+    const text = new TextDecoder().decode(Uint8Array.from(atob(cur.content.replace(/\n/g, '')), c => c.charCodeAt(0)));
+    const json = JSON.parse(text);
+
+    // 2) 값만 갈아끼운다. _ 로 시작하는 안내문은 그대로 둔다 — 덮어쓰면 다음 해에 뭘 넣는지 모르게 된다
+    ['year','asOf','salary','children','taxbase','credit','check','market','transit','culture',
+     'restSpend','pensionSave','pensionIrp','sp_salary','cp_total','childSide']
+      .forEach(k => { json[k] = S[k]; });
+    json._샘플 = false;
+
+    // 3) 되돌려 쓴다. sha 를 같이 보내 다른 곳에서 먼저 바뀐 경우를 잡는다
+    const r2 = await fetch(api, {
+      method: 'PUT', headers: Object.assign(ghHeaders(token), { 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        message: '앱에서 설정값 갱신 (' + new Date().toISOString().slice(0,16) + 'Z)',
+        content: b64(JSON.stringify(json, null, 2) + '\n'),
+        sha: cur.sha
+      })
+    });
+    if (!r2.ok) throw new Error(ghWhy(r2.status));
+    cfgSay('<b>반영했습니다.</b> 다음 알림부터 이 숫자로 계산합니다.');
+  } catch (e){
+    cfgSay(e.message, true);
+  }
+}
+function ghWhy(code){
+  if (code === 401) return '토큰이 맞지 않습니다. 새로 발급해 넣어 보세요.';
+  if (code === 403) return '권한이 없습니다. 토큰 권한에서 <b>Contents</b> 를 <b>Read and write</b> 로 두었는지 확인하세요.';
+  if (code === 404) return '저장소나 파일을 찾지 못했습니다. 토큰을 만들 때 <b>yearend-card-alert</b> 를 선택했는지 확인하세요.';
+  if (code === 409) return '다른 곳에서 먼저 바뀌었습니다. 잠시 뒤 다시 눌러 주세요.';
+  if (code === 422) return '보낸 내용을 GitHub 이 거부했습니다. 잠시 뒤 다시 시도하세요.';
+  return '실패했습니다 (오류 ' + code + '). 인터넷 연결을 확인해 보세요.';
+}
+
+/* ---------------- 맞벌이 ---------------- */
+function personRefund(salary, taxbase, amount, children){
+  const rl = rule(), M = salary * rl.thresholdRate;
+  const use = { credit:Math.min(amount, M), check:Math.max(0, amount - M), market:0, transit:0, culture:0 };
+  return taxSaved(taxbase, deduction(rl, salary, use, children).ded);
+}
+function estimateBase(sal, kids){
+  return Math.max(0, sal - earnedIncomeDeduction(sal) - 150 * (1 + Math.min(kids, 10)));
+}
+function coupleCurve(){
+  const tot = n(S.cp_total);
+  const kidsMe = S.childSide === 'me' ? n(S.children) : 0;
+  const kidsSp = S.childSide === 'sp' ? n(S.children) : 0;
+  const spBase = estimateBase(n(S.sp_salary), kidsSp);
+  const pts = [];
+  for (let i = 0; i <= 100; i++){
+    const a = tot * i / 100, b = tot - a;
+    pts.push({ x:i, y: personRefund(n(S.salary), taxBase(), a, kidsMe) + personRefund(n(S.sp_salary), spBase, b, kidsSp) });
+  }
+  return pts;
+}
+function renderCouple(){
+  const ok = n(S.sp_salary) > 0 && n(S.cp_total) > 0;
+  $('cpResult').hidden = !ok;
+  if (!ok) return;
+  const pts = coupleCurve(), tot = n(S.cp_total);
+  const best = pts.reduce((m,p) => p.y > m.y ? p : m, pts[0]);
+  const half = pts[50];
+  const worst = pts.reduce((m,p) => p.y < m.y ? p : m, pts[0]);
+  // 양쪽 끝이 똑같이 최대인 경우가 흔하다 — 그때 한쪽을 찍어 권하면 근거 없는 조언이 된다
+  const ties = pts.filter(p => Math.abs(p.y - best.y) < 1e-6);
+  const bothEnds = ties.some(p => p.x === 0) && ties.some(p => p.x === 100);
+  $('cpVerdict').textContent = bothEnds ? '둘 중 누구든 한 사람 카드로 몰아 쓰세요'
+    : best.x >= 99 ? '본인 카드로 몰아 쓰세요'
+    : best.x <= 1 ? '배우자 카드로 몰아 쓰세요'
+    : '본인 ' + best.x + ' : 배우자 ' + (100 - best.x) + ' 비율로 나누세요';
+  $('cpBest').textContent = KRW(best.y);
+  $('cpBestD').textContent = bothEnds
+    ? '한 사람이 ' + MAN(tot) + ' 전부 — 누가 맡아도 결과가 같습니다'
+    : '본인 ' + MAN(tot * best.x / 100) + ' · 배우자 ' + MAN(tot * (100 - best.x) / 100);
+  $('cpHalf').textContent = KRW(half.y);
+  $('cpHalfD').textContent = '반반으로 쓰면 ' + KRW(best.y - half.y) + ' 손해';
+  drawCurve(pts, best, half, bothEnds);
+}
+/* 축 눈금을 1·2·2.5·5·10 계열의 읽기 좋은 간격으로 */
+function niceStep(max, count){
+  const raw = (max / count) || 1;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  const s = norm <= 1 ? 1 : norm <= 1.5 ? 1.5 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10;
+  return s * mag;
+}
+function drawCurve(pts, best, half, bothEnds){
+  const svg = $('cpChart');
+  const narrow = ((typeof window !== 'undefined' && window.innerWidth) || 900) < 520;
+  const W = 600, H = narrow ? 430 : 280;
+  const L = narrow ? 68 : 52, R = narrow ? 22 : 18, T = narrow ? 44 : 26, B = narrow ? 60 : 40;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.classList.toggle('narrow', narrow);
+  const iw = W - L - R, ih = H - T - B;
+  const ymax = Math.max(1, Math.max(...pts.map(p => p.y)) * 1.15);
+  const step = niceStep(ymax, 4);
+  const X = x => L + x / 100 * iw;
+  const Y = y => T + ih - (y / ymax) * ih;
+  let g = '';
+  for (let i = 0; i * step <= ymax; i++){
+    const v = i * step, y = Y(v);
+    g += '<line class="gridline" x1="' + L + '" y1="' + y.toFixed(1) + '" x2="' + (W - R) + '" y2="' + y.toFixed(1) + '"/>'
+       + '<text class="ax" x="' + (L - 8) + '" y="' + (y + 3.5).toFixed(1) + '" text-anchor="end">'
+       + (step < 1 ? v.toFixed(1) : Math.round(v)) + '</text>';
+  }
+  for (let i = 0; i <= 4; i++){
+    const xv = i * 25;
+    g += '<text class="ax" x="' + X(xv) + '" y="' + (H - B + (narrow ? 26 : 17)) + '" text-anchor="middle">' + xv + '%</text>';
+  }
+  g += '<text class="axl" x="' + (L + iw / 2) + '" y="' + (H - 4) + '" text-anchor="middle">본인 카드로 결제하는 비율</text>';
+  g += '<text class="axl" x="' + L + '" y="' + (T - (narrow ? 16 : 10)) + '" text-anchor="start">부부가 함께 돌려받는 돈 (만원)</text>';
+  const d = pts.map((p,i) => (i ? 'L' : 'M') + X(p.x).toFixed(1) + ' ' + Y(p.y).toFixed(1)).join(' ');
+  g += '<path d="' + d + ' L ' + X(100).toFixed(1) + ' ' + Y(0).toFixed(1) + ' L ' + X(0).toFixed(1) + ' ' + Y(0).toFixed(1) + ' Z" fill="var(--accent)" opacity="0.10"/>';
+  g += '<path d="' + d + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>';
+  g += '<circle cx="' + X(half.x).toFixed(1) + '" cy="' + Y(half.y).toFixed(1) + '" r="4.5" fill="var(--surface)" stroke="var(--ink-3)" stroke-width="2"/>'
+     + '<text class="ax" x="' + X(half.x).toFixed(1) + '" y="' + (Y(half.y) + (narrow ? 29 : 20)).toFixed(1) + '" text-anchor="middle" fill="var(--ink-3)">반반</text>';
+  if (bothEnds){
+    // 양끝이 똑같이 최대인 흔한 경우 — 한쪽만 짚으면 없는 차이를 있는 것처럼 보이게 한다
+    [0, 100].forEach(x => {
+      g += '<circle cx="' + X(x).toFixed(1) + '" cy="' + Y(best.y).toFixed(1) + '" r="5.5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>';
+    });
+    g += '<text class="ax" x="' + (L + iw / 2) + '" y="' + (Y(best.y) - (narrow ? 16 : 11)).toFixed(1)
+       + '" text-anchor="middle" fill="var(--ink)" font-weight="600">양쪽 끝이 똑같이 가장 높습니다</text>';
+  } else {
+    const lx = best.x > 80 ? X(best.x) - 9 : X(best.x) + 9;
+    g += '<circle cx="' + X(best.x).toFixed(1) + '" cy="' + Y(best.y).toFixed(1) + '" r="5.5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>'
+       + '<text class="ax" x="' + lx.toFixed(1) + '" y="' + (Y(best.y) - (narrow ? 15 : 10)).toFixed(1) + '" text-anchor="' + (best.x > 80 ? 'end' : 'start')
+       + '" fill="var(--ink)" font-weight="600">가장 많이 받는 지점</text>';
+  }
+  g += '<rect id="cpHit" x="' + L + '" y="' + T + '" width="' + iw + '" height="' + ih + '" fill="transparent"/>';
+  g += '<line id="cpCross" x1="0" y1="' + T + '" x2="0" y2="' + (T + ih) + '" stroke="var(--line-2)" stroke-width="1" opacity="0"/>';
+  svg.innerHTML = '<title id="cpChartT">본인 부담 비율별 부부 합계 환급액</title>' + g;
+
+  const hit = $('cpHit'), cross = $('cpCross'), tip = $('cpTip');
+  const move = ev => {
+    const rc = svg.getBoundingClientRect();
+    const px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rc.left;
+    const xv = Math.max(0, Math.min(100, Math.round((px / rc.width * W - L) / iw * 100)));
+    const p = pts[xv];
+    cross.setAttribute('x1', X(xv)); cross.setAttribute('x2', X(xv)); cross.setAttribute('opacity', '1');
+    tip.style.opacity = '1';
+    tip.style.left = (X(xv) / W * rc.width) + 'px';
+    tip.style.top = (Y(p.y) / H * rc.height) + 'px';
+    tip.innerHTML = '본인 <b>' + xv + '%</b> · 배우자 <b>' + (100 - xv) + '%</b><br>함께 <b>' + KRW(p.y) + '</b>';
+  };
+  hit.addEventListener('mousemove', move);
+  hit.addEventListener('touchmove', move, { passive:true });
+  hit.addEventListener('mouseleave', () => { cross.setAttribute('opacity', '0'); tip.style.opacity = '0'; });
+}
+
+/* ---------------- 연금계좌 ---------------- */
+function renderPension(bestD){
+  const r = rule(), sal = n(S.salary);
+  // 카드 소득공제를 반영한 뒤의 과세표준 — 세액공제는 여기서 나온 산출세액을 넘을 수 없다
+  const baseAfter = Math.max(0, taxBase() - (bestD ? bestD.ded : 0));
+  const saved = n(S.pensionSave), irp = n(S.pensionIrp);
+  const R = pensionRoom(r, sal, baseAfter, saved, irp);
+  const p = r.pension;
+  const pct = (R.now.rate * (1 + LOCAL_TAX) * 100).toFixed(1);
+  const L = [];
+
+  if (R.room <= 0.5){
+    L.push('<div class="hl-kicker">올해 연금계좌</div>');
+    L.push('<div class="cp-v num" style="font-size:24px">한도를 다 채웠습니다</div>');
+    L.push('<div class="note">' + MAN(R.now.eligible) + '에 대해 <b>' + KRW(R.now.credit)
+      + '</b>이 세금에서 깎입니다. 더 넣어도 공제는 늘지 않습니다.</div>');
+  } else {
+    L.push('<div class="hl-kicker">12월 31일까지 ' + MAN(R.room) + '을 더 넣으면</div>');
+    L.push('<div class="hl-amt num" style="font-size:30px;margin-top:6px">+' + KRW(R.gain).replace('원','')
+      + '<small>원</small></div>');
+    const how = R.roomSelf > 0.5 && R.roomSelf < R.room - 0.5
+      ? '연금저축에 ' + MAN(R.roomSelf) + ', 나머지 ' + MAN(R.room - R.roomSelf) + '은 IRP에 넣어야 합니다.'
+      : (R.roomSelf > 0.5 ? '연금저축·IRP 어느 쪽이든 됩니다.' : '연금저축은 한도가 찼으니 <b>IRP</b>에 넣어야 합니다.');
+    L.push('<div class="note">' + how + ' 넣은 금액의 <b>' + pct + '%</b>가 세금에서 그대로 빠집니다'
+      + (sal > 0 ? ' (연봉 ' + MAN(p.salaryBoundary) + ' ' + (sal <= p.salaryBoundary ? '이하' : '초과') + ' 구간).' : '.')
+      + '</div>');
+    if (n(S.pensionSave) + n(S.pensionIrp) === 0){
+      L.push('<div class="note">위 금액은 <b>올해 한 푼도 안 넣었다고 보고</b> 계산한 것입니다. '
+        + '이미 넣은 게 있으면 아래에 입력하세요.</div>');
+    }
+  }
+
+  if (R.now.capped || (R.room > 0.5 && R.full.capped)){
+    L.push('<div class="note"><span class="tag w">산출세액 한도</span> 낼 세금보다 공제가 커서 '
+      + '전액을 못 받습니다. 없는 세금을 돌려주지는 않습니다.</div>');
+  }
+  // 세액공제는 소득공제와 달리 세율과 무관하다. 이 차이를 모르면 카드공제와 섞어 생각하게 된다.
+  L.push('<div class="note"><b>카드공제와 다른 점</b> — 카드는 <b>세금 매기는 금액</b>을 줄이지만, '
+    + '연금은 <b>세금 자체</b>를 깎습니다. 그래서 세율이 낮은 사람일수록 이쪽이 상대적으로 더 이득입니다.</div>');
+  // ★ 이 경고를 빼면 안 된다. 묶이는 돈이라는 것을 모르고 넣으면 나중에 손해를 본다.
+  L.push('<div class="note"><span class="tag w">먼저 확인</span> 이 돈은 <b>만 55세 이후 연금으로</b> 받는 조건입니다. '
+    + '중간에 빼면 받은 공제를 토해내는 데 그치지 않고 <b>기타소득세 16.5%</b>를 뗍니다. '
+    + '당장 쓸 돈이라면 넣지 마세요 — 공제보다 손해가 큽니다.</div>');
+  L.push('<div class="note">근로소득세액공제를 빼지 않은 어림값입니다. 정확한 한도는 홈택스 미리보기에 있습니다.</div>');
+
+  $('pensionBody').innerHTML = L.join('');
+}
+
+/* ---------------- 계산 내역 ---------------- */
+function renderBreakdown(cur, bestD, M){
+  const r = rule(), sal = n(S.salary);
+  const rows = [
+    ['연봉 (총급여)', MAN(sal)],
+    ['공제 시작 기준선 (25%)', MAN(M)],
+    ['연말 예상 카드 사용액', MAN(bestD.total)],
+    ['기준선을 넘긴 금액', MAN(Math.max(0, bestD.total - M))],
+    ['소득공제액', MAN(bestD.ded)],
+    ['공제 상한 (기본)', MAN(bestD.baseCap)],
+    ['세금 매기는 기준 금액' + (isEstimated() ? ' (어림)' : ''), MAN(taxBase())],
+    ['적용 세율 (지방소득세 포함)', (marginalRate(taxBase()) * 100).toFixed(1) + '%'],
+    ['가장 많이 받을 때 돌려받는 돈', KRW(bestD.refund)]
+  ];
+  $('breakdown').innerHTML = rows.map(x => '<div class="kv"><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('');
+
+  const p = projected(bestMix().p);
+  const segs = [
+    { l:'신용카드', c:'var(--c1)', v:p.credit },
+    { l:'체크·현금영수증', c:'var(--c2)', v:p.check },
+    { l:'전통시장', c:'var(--c3)', v:n(S.market) },
+    { l:'대중교통', c:'var(--c4)', v:n(S.transit) },
+    { l:'도서·공연·체육', c:'var(--c5)', v:n(S.culture) }
+  ].filter(s => s.v > 0);
+  $('compBar').innerHTML = segs.map(s => '<div class="comp-seg" style="flex:' + s.v + ' 1 0; background:' + s.c + '" title="' + s.l + '"></div>').join('');
+  $('compLegend').innerHTML = segs.map(s =>
+    '<span class="lg"><span class="swatch" style="background:' + s.c + '"></span>' + s.l + ' <span class="num">' + MAN(s.v) + '</span></span>').join('');
+}
+
+/* ---------------- 규칙 ---------------- */
+function renderRules(){
+  const r = rule(), sal = n(S.salary), low = sal <= r.salaryBoundary;
+  $('ruleStatus').innerHTML = '<b>' + r.label + '</b> — ' + r.statusText;
+  const rows = [
+    ['공제 시작 기준선', '연봉의 25%', MAN(threshold())],
+    ['신용카드', '15%', ''],
+    ['체크·선불카드·현금영수증', '30%', ''],
+    ['전통시장', '40%', ''],
+    ['대중교통', r.rate.transit === null ? '우대 폐지 — 결제수단별 일반 공제율' : '40%', ''],
+    ['도서·공연·박물관·미술관·영화·체육시설',
+      r.cultureEligibleUnderBoundary ? '30% (연봉 7천만원 이하만)' : '30% (소득 제한 없음)',
+      r.cultureEligibleUnderBoundary ? (low ? '대상' : '대상 아님') : '대상'],
+    ['공제 상한 (기본)', '연봉 7천만원 이하 ' + r.baseCap.low + '만원 / 초과 ' + r.baseCap.high + '만원',
+      MAN(low ? r.baseCap.low : r.baseCap.high)],
+    ['아이가 있을 때 상한 추가', '한 명당 ' + r.childBonus.low + '만원(7천 이하) / ' + r.childBonus.high + '만원(초과), 최대 ' + r.childBonus.maxCount + '명',
+      '+' + MAN(Math.min(n(S.children), r.childBonus.maxCount) * (low ? r.childBonus.low : r.childBonus.high))],
+    ['상한을 넘겨도 더 쳐주는 부분', '전통시장·대중교통' + (r.extraIncludesCulture ? '(7천 이하는 도서공연 포함)' : '') + '에서 나온 공제분만 '
+      + r.extraCap.low + '만원(7천 이하) / ' + r.extraCap.high + '만원(초과)', MAN(low ? r.extraCap.low : r.extraCap.high)],
+    ['소비 증가분 추가공제', '현행 조문은 2024년 사용분에만 적용 — 이 해에는 없음', ''],
+    ['연금계좌 세액공제 (참고)', '연금저축 ' + r.pension.limitSelf + '만원 / IRP 합산 ' + r.pension.limitTotal
+      + '만원까지, 연봉 ' + r.pension.salaryBoundary + '만원 이하 ' + (r.pension.rateLow*100) + '% / 초과 '
+      + (r.pension.rateHigh*100) + '% (지방소득세 별도)',
+      sal > 0 ? ((sal <= r.pension.salaryBoundary ? r.pension.rateLow : r.pension.rateHigh) * 110).toFixed(1) + '%' : '']
+  ];
+  $('ruleTbl').innerHTML = '<thead><tr><th>항목</th><th>규정</th><th style="text-align:right">내 경우</th></tr></thead><tbody>'
+    + rows.map(x => '<tr><td>' + x[0] + '</td><td style="color:var(--ink-2)">' + x[1] + '</td><td class="n">' + x[2] + '</td></tr>').join('')
+    + '</tbody>';
+}
+
+/* =========================================================================
+   배선
+   ========================================================================= */
+function bindNum(id, key, after){
+  const el = $(id); if (!el) return;
+  el.addEventListener('input', () => { S[key] = el.value === '' ? null : +el.value; if (after) after(); save(); });
+}
+function fill(){
+  const set = (id, v) => { const e = $(id); if (e) e.value = (v === null || v === undefined) ? '' : v; };
+  set('salary', S.salary); set('taxbase', S.taxbase); set('restSpend', S.restSpend);
+  set('u_credit', S.credit); set('u_check', S.check); set('u_market', S.market);
+  set('u_transit', S.transit); set('u_culture', S.culture);
+  set('pn_save', S.pensionSave); set('pn_irp', S.pensionIrp);
+  set('sp_salary', S.sp_salary); set('cp_total', S.cp_total);
+}
+
+function init(){
+  load();
+  if (S.theme) document.documentElement.setAttribute('data-theme', S.theme);
+  fill();
+
+  buildChips($('kidChips'),
+    [{v:0,l:'없어요'},{v:1,l:'1명'},{v:2,l:'2명'},{v:3,l:'3명 이상'}],
+    () => S.children, v => { S.children = +v; syncStep1(); });
+
+  buildChips($('asOfChips'),
+    Array.from({length:12}, (_,i) => ({ v:i+1, l:MONTH[i+1] })),
+    () => S.asOf, v => { S.asOf = +v; syncStep2(); syncStep3(); });
+
+  buildChips($('sideChips'),
+    [{v:'me',l:'본인'},{v:'sp',l:'배우자'}],
+    () => S.childSide, v => { S.childSide = v; renderCouple(); });
+
+  bindNum('salary', 'salary', syncStep1);
+  bindNum('taxbase', 'taxbase');
+  bindNum('restSpend', 'restSpend', syncStep3);
+  bindNum('u_credit', 'credit', syncStep2);
+  bindNum('u_check', 'check', syncStep2);
+  bindNum('u_market', 'market', syncStep2);
+  bindNum('u_transit', 'transit', syncStep2);
+  bindNum('u_culture', 'culture', syncStep2);
+  bindNum('pn_save', 'pensionSave', () => renderPension(refundOf(bestMix().p)));
+  bindNum('pn_irp', 'pensionIrp', () => renderPension(refundOf(bestMix().p)));
+  bindNum('sp_salary', 'sp_salary', renderCouple);
+  bindNum('cp_total', 'cp_total', renderCouple);
+
+  $('go1').addEventListener('click', () => { syncStep2(); syncStep3(); showStep(2); });
+  $('go2').addEventListener('click', () => { syncStep3(); showStep(3); });
+  $('go3').addEventListener('click', () => showStep(0));
+  $('back2').addEventListener('click', () => showStep(1));
+  $('back3').addEventListener('click', () => showStep(2));
+  $('editBtn').addEventListener('click', () => showStep(1));
+  $('editBtn2').addEventListener('click', () => showStep(1));
+  $('cfgPush').addEventListener('click', pushConfig);
+  $('tokSave').addEventListener('click', function(){
+    const v = $('ghToken').value.trim();
+    if (!v){ cfgSay('토큰 칸이 비어 있습니다.', true); return; }
+    try { localStorage.setItem(TOKEN_KEY, v); } catch(e){}
+    $('ghToken').value = '';                 // 화면에 남겨두지 않는다
+    syncTokState();
+    cfgSay('토큰을 이 기기에 저장했습니다. 이제 「알림에 반영」을 누르세요.');
+  });
+  $('tokClear').addEventListener('click', function(){
+    try { localStorage.removeItem(TOKEN_KEY); } catch(e){}
+    $('ghToken').value = '';
+    syncTokState();
+    cfgSay('토큰을 지웠습니다.');
+  });
+  syncTokState();
+  $('cfgCopy').addEventListener('click', function(){
+    const t = $('cfgOut');
+    const done = () => { $('cfgMsg').textContent = '복사했습니다. config.json 의 내용을 이걸로 전부 바꾸세요.'; };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t.value).then(done, function(){ t.select(); done(); });
+    } else { t.select(); done(); }
+  });
+  $('againBtn').addEventListener('click', () => {
+    try { localStorage.removeItem(KEY); } catch(e){}
+    location.reload();
+  });
+  $('themeBtn').addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    S.theme = next; save();
+  });
+  $('cpDetails').addEventListener('toggle', () => { if ($('cpDetails').open) renderCouple(); });
+
+  // 화면 폭이 바뀌면 차트 좌표계를 다시 잡는다 (가로↔세로 회전)
+  if (window.addEventListener){
+    let rz;
+    window.addEventListener('resize', () => {
+      clearTimeout(rz);
+      rz = setTimeout(() => { if (!$('result').hidden) renderCouple(); }, 200);
+    });
+  }
+
+  syncStep1(); syncStep2(); syncStep3();
+  showStep(S.done && n(S.salary) > 0 ? 0 : (S.step || 1));
+}
+init();
+
+/* 서비스워커 — 신호가 없어도 열리게 한다.
+   file:// 로 열었거나(로컬 더블클릭) 지원하지 않는 브라우저면 조용히 넘어간다. */
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
